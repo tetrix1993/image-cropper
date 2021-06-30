@@ -2,7 +2,6 @@ import os
 from PIL import Image
 
 
-PROCESS_MODE = 2
 OUTPUT = 'out'
 VALID_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif']
 
@@ -10,10 +9,14 @@ VALID_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif']
 CROP_START_POSITION_TOP_LEFT = 1
 CROP_START_POSITION_BOTTOM_LEFT = 2
 PROCESS_MODE_BASIC = 1
-PROCESS_MODE_PARAM = 2
+PROCESS_MODE_PARAM_RELATIVE = 2
+PROCESS_MODE_PARAM_ABSOLUTE = 3
 
 
 def run():
+    process_mode = get_process_mode()
+    if process_mode is None:
+        return
     while True:
         dirfile = input('Enter directory or filepath of image: ').replace('\\', '/')
         if len(dirfile) == 0:
@@ -28,16 +31,28 @@ def run():
             if len(file_list) == 0:
                 print('[ERROR] Directory has no images.')
                 continue
-            process_file_choice(dirfile, file_list)
+            process_file_choice(dirfile, file_list, process_mode)
         elif os.path.isfile(dirfile):
             if has_valid_extension(dirfile):
                 file = dirfile.split('/')[-1]
                 dir = dirfile[0:len(dirfile) - len(file) - 1]
-                process_file(dir, file)
+                process_file(dir, file, process_mode)
             else:
                 print('[ERROR] Expecting the file to have one of the extensions: ' + get_all_extensions())
         else:
             print('[ERROR] Directory or image does not exists')
+
+
+def get_process_mode():
+    print('[INFO] Select process mode')
+    print('1: Basic')
+    print('2: Parameter Relative')
+    print('3: Parameter Absolute')
+    process_mode = input('Enter choice: ')
+    if process_mode.strip() in ['1', '2', '3']:
+        return int(process_mode.strip())
+    else:
+        return None
 
 
 def has_valid_extension(file):
@@ -57,7 +72,7 @@ def get_all_extensions():
     return output
 
 
-def process_file_choice(dir, file_list):
+def process_file_choice(dir, file_list, process_mode):
     while True:
         print('[INFO] Select file: ')
         for i in range(len(file_list)):
@@ -70,17 +85,17 @@ def process_file_choice(dir, file_list):
             if choice_num < 1 or choice_num > len(file_list):
                 break
             else:
-                process_file(dir, file_list[choice_num - 1])
+                process_file(dir, file_list[choice_num - 1], process_mode)
         else:
             print('[ERROR] Invalid choice.')
 
 
-def process_file(dir, file):
+def process_file(dir, file, process_mode):
     while True:
         original_filepath = dir + '/' + file
         try:
             with Image.open(original_filepath) as im:
-                if PROCESS_MODE == PROCESS_MODE_BASIC:
+                if process_mode == PROCESS_MODE_BASIC:
                     original_width, original_height = im.size
                     print('[INFO] Image size: %sx%s' % (str(original_width), str(original_height)))
                     crop_start_pos = get_crop_from_choice()
@@ -119,7 +134,7 @@ def process_file(dir, file):
 
                     cropped_image = im.crop((pos_x, pos_y, end_pos_x, end_pos_y))
                     output_file(file, cropped_image)
-                elif PROCESS_MODE == PROCESS_MODE_PARAM:
+                elif process_mode == PROCESS_MODE_PARAM_RELATIVE:
                     user_input = input('Enter param ({start_pos_x} {start_pos_y} {width} {height}): ')
                     if len(user_input) == 0:
                         return
@@ -129,6 +144,18 @@ def process_file(dir, file):
                         pos_y = int(params[1])
                         end_pos_x = pos_x + int(params[2])
                         end_pos_y = pos_y + int(params[3])
+                        cropped_image = im.crop((pos_x, pos_y, end_pos_x, end_pos_y))
+                        output_file(file, cropped_image)
+                elif process_mode == PROCESS_MODE_PARAM_ABSOLUTE:
+                    user_input = input('Enter param ({start_pos_x} {start_pos_y} {end_pos_x} {end_pos_y}): ')
+                    if len(user_input) == 0:
+                        return
+                    params = user_input.split(' ')
+                    if len(params) == 4:
+                        pos_x = int(params[0])
+                        pos_y = int(params[1])
+                        end_pos_x = int(params[2])
+                        end_pos_y = int(params[3])
                         cropped_image = im.crop((pos_x, pos_y, end_pos_x, end_pos_y))
                         output_file(file, cropped_image)
                 else:
